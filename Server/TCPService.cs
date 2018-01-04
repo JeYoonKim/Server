@@ -66,14 +66,17 @@ namespace Server
                 {
                     string msg = Encoding.ASCII.GetString(bodyBuff, 0, bodyCount);
                     Console.WriteLine(msg);
+
                     
                     await Task.Factory.FromAsync(
                             clientSock.BeginSend(sendPacket, SocketFlags.None, null, clientSock),
                             clientSock.EndSend);
+                
                 }
 
                 clientSock.Close();
             }
+           
         }
     }
 }

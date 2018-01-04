@@ -2,11 +2,12 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Net;
+using System.Reflection;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Threading;
 using Client.Packet;
-
+using Client.Attribute;
 
 namespace Client
 {
@@ -23,6 +24,50 @@ namespace Client
     class ClientTest
     {
 
+        [Route(0)]
+        private static void RouteZero(Socket sock)
+        {
+            string sendData = "RouteZero";
+
+            MethodBase method = MethodBase.GetCurrentMethod();
+            RouteAttribute attr = (RouteAttribute)method.GetCustomAttributes(typeof(RouteAttribute), true)[0];
+            ushort route = attr.Route;
+
+            byte[] byteData = Encoding.UTF8.GetBytes(sendData);
+            ushort lengthData = (ushort)byteData.Length;
+
+            sock.Send(DataToPacket(lengthData, route, byteData));
+
+        }
+
+        [Route(1)]
+        private static void RouteOne(Socket sock)
+        {
+            string sendData = "RouteOne";
+            MethodBase method = MethodBase.GetCurrentMethod();
+            RouteAttribute attr = (RouteAttribute)method.GetCustomAttributes(typeof(RouteAttribute), true)[0];
+            ushort route = attr.Route;
+            byte[] byteData = Encoding.UTF8.GetBytes(sendData);
+            ushort lengthData = (ushort)byteData.Length;
+            sock.Send(DataToPacket(lengthData, route, byteData));
+        }
+
+        [Route(2)]
+        private static void RouteTwo(Socket sock)
+        {
+            string sendData = "RouteTwo";
+
+            MethodBase method = MethodBase.GetCurrentMethod();
+            RouteAttribute attr = (RouteAttribute)method.GetCustomAttributes(typeof(RouteAttribute), true)[0];
+            ushort route = attr.Route;
+
+            byte[] byteData = Encoding.UTF8.GetBytes(sendData);
+            ushort lengthData = (ushort)byteData.Length;
+
+            sock.Send(DataToPacket(lengthData, route, byteData));
+
+        }
+
         private static IList<ArraySegment<byte>> DataToPacket(ushort lengthData, ushort routeData, byte[] byteData)
         {
             Packet.Packet tcpPacket = new Packet.Packet(lengthData, routeData, byteData);
@@ -33,7 +78,7 @@ namespace Client
 
         }
 
-        private static void StartClient(int i)
+        private static void StartClient()
         {
             Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
@@ -42,18 +87,12 @@ namespace Client
             sock.Connect(ep);
 
 
-            string sendData = "testSending" + i;
-            byte[] byteData = Encoding.UTF8.GetBytes(sendData);
-            ushort routeData = 1;
-            ushort lengthData = (ushort)byteData.Length;
+            //RouteZero(sock);
+            //RouteOne(sock);
+            RouteTwo(sock);
+
 
             IList<ArraySegment<byte>> receiverPacket = new List<ArraySegment<byte>>();
-
-            // (3) 서버에 데이타 전송
-            sock.Send(DataToPacket(lengthData, routeData, byteData));
-
-
-            // (4) 서버에서 데이타 수신
             int n = sock.Receive(receiverPacket);
 
             //string data = Encoding.UTF8.GetString(receiverBuff, 0, n);
@@ -63,11 +102,11 @@ namespace Client
 
 
         }
+        
 
         static void Main(string[] args)
         {
-            for (int i = 0; i < 200; i++)
-                StartClient(i);
+                StartClient();
         }
     }
 
