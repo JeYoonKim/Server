@@ -24,49 +24,7 @@ namespace Client
     class ClientTest
     {
 
-        [Route(0)]
-        private static void RouteZero(Socket sock)
-        {
-            string sendData = "RouteZero";
-
-            MethodBase method = MethodBase.GetCurrentMethod();
-            RouteAttribute attr = (RouteAttribute)method.GetCustomAttributes(typeof(RouteAttribute), true)[0];
-            ushort route = attr.Route;
-
-            byte[] byteData = Encoding.UTF8.GetBytes(sendData);
-            ushort lengthData = (ushort)byteData.Length;
-
-            sock.Send(DataToPacket(lengthData, route, byteData));
-
-        }
-
-        [Route(1)]
-        private static void RouteOne(Socket sock)
-        {
-            string sendData = "RouteOne";
-            MethodBase method = MethodBase.GetCurrentMethod();
-            RouteAttribute attr = (RouteAttribute)method.GetCustomAttributes(typeof(RouteAttribute), true)[0];
-            ushort route = attr.Route;
-            byte[] byteData = Encoding.UTF8.GetBytes(sendData);
-            ushort lengthData = (ushort)byteData.Length;
-            sock.Send(DataToPacket(lengthData, route, byteData));
-        }
-
-        [Route(2)]
-        private static void RouteTwo(Socket sock)
-        {
-            string sendData = "RouteTwo";
-
-            MethodBase method = MethodBase.GetCurrentMethod();
-            RouteAttribute attr = (RouteAttribute)method.GetCustomAttributes(typeof(RouteAttribute), true)[0];
-            ushort route = attr.Route;
-
-            byte[] byteData = Encoding.UTF8.GetBytes(sendData);
-            ushort lengthData = (ushort)byteData.Length;
-
-            sock.Send(DataToPacket(lengthData, route, byteData));
-
-        }
+      
 
         private static IList<ArraySegment<byte>> DataToPacket(ushort lengthData, ushort routeData, byte[] byteData)
         {
@@ -82,18 +40,29 @@ namespace Client
         {
             Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
-            // (2) 서버에 연결
             var ep = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 7000);
             sock.Connect(ep);
 
+            string sendData = "RouteZero";
 
-            //RouteZero(sock);
-            //RouteOne(sock);
-            RouteTwo(sock);
+           ushort route = 0;
 
+            byte[] byteData = Encoding.UTF8.GetBytes(sendData);
+            ushort lengthData = (ushort)byteData.Length;
+
+            sock.Send(DataToPacket(lengthData, route, byteData));
 
             IList<ArraySegment<byte>> receiverPacket = new List<ArraySegment<byte>>();
-            int n = sock.Receive(receiverPacket);
+            byte[] bodyLengthBuff = new byte[sizeof(ushort)];
+            byte[] routeBuff = new byte[sizeof(ushort)];
+
+            sock.Receive(bodyLengthBuff,SocketFlags.None);
+            sock.Receive(routeBuff, SocketFlags.None);
+            ushort bodyLength = BitConverter.ToUInt16(bodyLengthBuff, 0);
+            byte[] bodyBuff = new byte[bodyLength];
+
+            sock.Receive(bodyBuff, SocketFlags.None);
+
 
             //string data = Encoding.UTF8.GetString(receiverBuff, 0, n);
             //Console.WriteLine(data);
