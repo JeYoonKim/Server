@@ -7,16 +7,16 @@ namespace Client.Attribute
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
     class RouteAttribute : System.Attribute
     {
-        private ushort att_route;
+        private ushort _route;
 
         public RouteAttribute(ushort route)
         {
-            att_route = route;
+            _route = route;
         }
 
         public ushort Route
         {
-            get { return att_route; }
+            get { return _route; }
         }
 
     }

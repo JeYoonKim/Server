@@ -45,7 +45,7 @@ namespace Client
 
             string sendData = "RouteZero";
 
-           ushort route = 0;
+           ushort route = 1;
 
             byte[] byteData = Encoding.UTF8.GetBytes(sendData);
             ushort lengthData = (ushort)byteData.Length;

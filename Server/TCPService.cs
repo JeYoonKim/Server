@@ -8,6 +8,8 @@ using Server.Packet;
 using Server.Attribute;
 using System.Reflection;
 using GGM.Application.Service;
+using System.Reflection.Emit;
+
 
 namespace Server
 {
@@ -15,6 +17,7 @@ namespace Server
     public class TCPService : IService
     {
 
+        public delegate void MethodDelegate();
 
         public class PlayController
         {
@@ -30,7 +33,7 @@ namespace Server
             {
                 Console.WriteLine("Draw Card");
             }
-            
+
         }
 
         public class NotificationController
@@ -44,28 +47,47 @@ namespace Server
 
         public class TCPDispatcher
         {
-            public Dictionary<Socket, Dictionary<ushort, Action>> dicSocket = new Dictionary<Socket, Dictionary<ushort, Action>>();
 
-            public void RegisterController(Socket socket, object Controller)
+            public Dictionary<Socket, Dictionary<ushort, Action>> SocketToDictionaryMap = new Dictionary<Socket, Dictionary<ushort, Action>>();
+
+            private MethodDelegate CreateMethodDelegate(MethodInfo methodInfo, Object controller)
             {
-                Dictionary<ushort, Action> dicController = new Dictionary<ushort, Action>();
+                DynamicMethod dm = new DynamicMethod(methodInfo.Name,
+                            methodInfo.ReturnType,
+                             new[] { controller.GetType() },
+                             GetType());
 
-                Type T = Controller.GetType();
-                ConstructorInfo constructorInfo = T.GetConstructor(Type.EmptyTypes);
-                object classObject = constructorInfo.Invoke(new object[] { });
+                ILGenerator iLGenerator = dm.GetILGenerator();
+                iLGenerator.Emit(OpCodes.Ldarg_0);
+                iLGenerator.Emit(OpCodes.Call, methodInfo);
+                iLGenerator.Emit(OpCodes.Ret);
 
-                MethodInfo[] methodInfos = Controller.GetType().GetMethods();
-                
+                MethodDelegate methodDelegate = (MethodDelegate)dm.CreateDelegate(typeof(MethodDelegate));
+
+                return methodDelegate;
+            }
+
+
+            public void RegisterController(Socket socket, object controller)
+            {
+                Dictionary<ushort, Action> _routeToActionMap = new Dictionary<ushort, Action>();
+
+                MethodInfo[] methodInfos = controller.GetType().GetMethods();
+
 
                 foreach (MethodInfo methodInfo in methodInfos)
                 {
                     var routeAttribute = methodInfo.GetCustomAttribute<RouteAttribute>();
-                    if(routeAttribute!=null)
-                    dicController.Add(routeAttribute.Route, () => { methodInfo.Invoke(classObject, null); });
+
+                    if (routeAttribute != null)
+                    {
+                        var methodDelegate = CreateMethodDelegate(methodInfo, controller);
+                        
+                        _routeToActionMap.Add(routeAttribute.Route,() => methodDelegate());
+                    }
                 }
 
-                
-                dicSocket.Add(socket, dicController);
+                SocketToDictionaryMap.Add(socket, _routeToActionMap);
             }
         }
 
@@ -92,8 +114,8 @@ namespace Server
                 IPEndPoint notice_ep = new IPEndPoint(IPAddress.Any, 7001);
                 noticeSock.Bind(notice_ep);
                 noticeSock.Listen(200);
-
-                tcpDispatcher.RegisterController(noticeSock, new NotificationController());
+                NotificationController notificationController = new NotificationController();
+                tcpDispatcher.RegisterController(noticeSock, notificationController);
 
                 while (true)
                 {
@@ -123,15 +145,11 @@ namespace Server
                                clientSock.BeginReceive(bodyBuff, 0, bodyBuff.Length, SocketFlags.None, null, clientSock),
                                clientSock.EndReceive);
 
-                    if (tcpDispatcher.dicSocket.ContainsKey(noticeSock).Equals(true))
+                    if (tcpDispatcher.SocketToDictionaryMap.ContainsKey(noticeSock).Equals(true))
                     {
-                        Console.WriteLine("noitceworking");
-                        if (tcpDispatcher.dicSocket[noticeSock].ContainsKey(route).Equals(true))
-                        {
-
-                            tcpDispatcher.dicSocket[noticeSock][route]();
-
-                        }
+                        //Console.WriteLine("noticeworking");
+                        if (tcpDispatcher.SocketToDictionaryMap[noticeSock].ContainsKey(route).Equals(true))
+                            tcpDispatcher.SocketToDictionaryMap[noticeSock][route].Invoke();
                     }
 
                     if (bodyCount > 0)
@@ -160,8 +178,9 @@ namespace Server
                 IPEndPoint play_ep = new IPEndPoint(IPAddress.Any, 7000);
                 playSock.Bind(play_ep);
                 playSock.Listen(200);
+                PlayController playController = new PlayController();
 
-                tcpDispatcher.RegisterController(playSock, new PlayController());
+                tcpDispatcher.RegisterController(playSock, playController);
 
                 while (true)
                 {
@@ -191,15 +210,10 @@ namespace Server
                                clientSock.BeginReceive(bodyBuff, 0, bodyBuff.Length, SocketFlags.None, null, clientSock),
                                clientSock.EndReceive);
 
-                    if (tcpDispatcher.dicSocket.ContainsKey(playSock).Equals(true))
+                    if (tcpDispatcher.SocketToDictionaryMap.ContainsKey(playSock).Equals(true))
                     {
-                        Console.WriteLine("playworking");
-                        if (tcpDispatcher.dicSocket[playSock].ContainsKey(route).Equals(true))
-                        {
-
-                            tcpDispatcher.dicSocket[playSock][route]();
-
-                        }
+                        if (tcpDispatcher.SocketToDictionaryMap[playSock].ContainsKey(route).Equals(true))
+                            tcpDispatcher.SocketToDictionaryMap[playSock][route].Invoke();
                     }
 
 
@@ -221,7 +235,7 @@ namespace Server
             }
         }
 
-        public Guid ID { get; set; }       
+        public Guid ID { get; set; }
 
         public void Boot(string[] arguments)
         {
@@ -229,6 +243,6 @@ namespace Server
             TCPSocket tcpSocket = new TCPSocket();
             tcpSocket.taskWait();
         }
-      
+
     }
 }
