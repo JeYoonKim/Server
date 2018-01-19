@@ -149,7 +149,7 @@ namespace Server
                     {
                         //Console.WriteLine("noticeworking");
                         if (tcpDispatcher.SocketToDictionaryMap[noticeSock].ContainsKey(route).Equals(true))
-                            tcpDispatcher.SocketToDictionaryMap[noticeSock][route].Invoke();
+                            tcpDispatcher.SocketToDictionaryMap[noticeSock][route]();
                     }
 
                     if (bodyCount > 0)
@@ -213,7 +213,7 @@ namespace Server
                     if (tcpDispatcher.SocketToDictionaryMap.ContainsKey(playSock).Equals(true))
                     {
                         if (tcpDispatcher.SocketToDictionaryMap[playSock].ContainsKey(route).Equals(true))
-                            tcpDispatcher.SocketToDictionaryMap[playSock][route].Invoke();
+                            tcpDispatcher.SocketToDictionaryMap[playSock][route]();
                     }
 
 
