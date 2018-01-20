@@ -17,20 +17,22 @@ namespace Server
     public class TCPService : IService
     {
 
-        public delegate void MethodDelegate();
+        public delegate void MethodDelegate(Packet.Packet packet);
 
         public class PlayController
         {
 
             [Route(0)]
-            public void UseCard()
+            public void UseCard(Packet.Packet useCardPacket)
             {
+                Console.WriteLine(useCardPacket.Route);
                 Console.WriteLine("Use Card");
             }
 
             [Route(1)]
-            public void DrawCard()
+            public void DrawCard(Packet.Packet drawCardPacket)
             {
+                Console.WriteLine(drawCardPacket.Route);
                 Console.WriteLine("Draw Card");
             }
 
@@ -39,8 +41,9 @@ namespace Server
         public class NotificationController
         {
             [Route(0)]
-            public void BroadCastReceive()
+            public void BroadCastReceive(Packet.Packet broadCastPacket)
             {
+                Console.WriteLine(broadCastPacket.Route);
                 Console.WriteLine("BroadCast");
             }
         }
@@ -54,11 +57,12 @@ namespace Server
             {
                 DynamicMethod dm = new DynamicMethod(methodInfo.Name,
                             methodInfo.ReturnType,
-                             new[] { controller.GetType() },
+                             new[] { controller.GetType(), typeof(Packet.Packet) },
                              GetType());
 
                 ILGenerator iLGenerator = dm.GetILGenerator();
                 iLGenerator.Emit(OpCodes.Ldarg_0);
+                iLGenerator.Emit(OpCodes.Ldarg_1);
                 iLGenerator.Emit(OpCodes.Call, methodInfo);
                 iLGenerator.Emit(OpCodes.Ret);
 
@@ -68,7 +72,7 @@ namespace Server
             }
 
 
-            public void RegisterController(Socket socket, object controller)
+            public void RegisterController(Socket socket, object controller, Packet.Packet packet)
             {
                 Dictionary<ushort, Action> _routeToActionMap = new Dictionary<ushort, Action>();
 
@@ -83,7 +87,7 @@ namespace Server
                     {
                         var methodDelegate = CreateMethodDelegate(methodInfo, controller);
                         
-                        _routeToActionMap.Add(routeAttribute.Route,() => methodDelegate());
+                        _routeToActionMap.Add(routeAttribute.Route,() => methodDelegate(packet));
                     }
                 }
 
@@ -115,7 +119,7 @@ namespace Server
                 noticeSock.Bind(notice_ep);
                 noticeSock.Listen(200);
                 NotificationController notificationController = new NotificationController();
-                tcpDispatcher.RegisterController(noticeSock, notificationController);
+                //tcpDispatcher.RegisterController(noticeSock, notificationController);
 
                 while (true)
                 {
@@ -144,6 +148,10 @@ namespace Server
                     int bodyCount = await Task.Factory.FromAsync<int>(
                                clientSock.BeginReceive(bodyBuff, 0, bodyBuff.Length, SocketFlags.None, null, clientSock),
                                clientSock.EndReceive);
+
+                    Packet.Packet packet = new Packet.Packet(bodyLength, route, bodyBuff);
+
+                    tcpDispatcher.RegisterController(noticeSock, notificationController, packet);
 
                     if (tcpDispatcher.SocketToDictionaryMap.ContainsKey(noticeSock).Equals(true))
                     {
@@ -180,7 +188,7 @@ namespace Server
                 playSock.Listen(200);
                 PlayController playController = new PlayController();
 
-                tcpDispatcher.RegisterController(playSock, playController);
+                //tcpDispatcher.RegisterController(playSock, playController);
 
                 while (true)
                 {
@@ -209,6 +217,11 @@ namespace Server
                     int bodyCount = await Task.Factory.FromAsync<int>(
                                clientSock.BeginReceive(bodyBuff, 0, bodyBuff.Length, SocketFlags.None, null, clientSock),
                                clientSock.EndReceive);
+
+                    Packet.Packet packet = new Packet.Packet(bodyLength, route, bodyBuff);
+
+
+                    tcpDispatcher.RegisterController(playSock, playController, packet);
 
                     if (tcpDispatcher.SocketToDictionaryMap.ContainsKey(playSock).Equals(true))
                     {
