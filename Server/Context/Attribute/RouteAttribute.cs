@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Server.Attribute
+namespace Server.Context.Attribute
 {
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
     class RouteAttribute : System.Attribute
